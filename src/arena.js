@@ -73,12 +73,12 @@ class Arena {
                 switch (currentCell) {
                     case 'W':
                         let brick = MeshBuilder.CreateBox('brick', {size: 1}, GlobalManager.scene);
-                        brick.position.set(x, 0.5, y);
+                        brick.position.set(x, y, 0.5);
                         brick.material = wallMaterial;
                         break;
                     case 'P': // Nouveau cas pour les plates-formes
                         let platform = MeshBuilder.CreateBox('platform', {height: 0.1, width: 1, depth: 1}, GlobalManager.scene);
-                        platform.position.set(x, 0.25, y); // Ajustez la position verticale selon vos besoins
+                        platform.position.set(x, y,0.25)// Ajustez la position verticale selon vos besoins
                         let platformMaterial = new StandardMaterial('platformMaterial', GlobalManager.scene);
                         platformMaterial.diffuseColor = new Color3(0.76, 0.6, 0.42); // Couleur boisée par exemple
                         platform.material = platformMaterial;

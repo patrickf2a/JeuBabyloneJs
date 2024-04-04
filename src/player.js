@@ -117,13 +117,8 @@ class Player {
             this.moveInput.x = 1;
         }
 
-        if (inputMap["KeyW"]) {
-            this.moveInput.z = 1;
-        } else if (inputMap["KeyS"]) {
-            this.moveInput.z = -1;
-        }
 
-        if (inputMap["Space"] && !this.isJumping) {
+        if (inputMap["KeyW"] && !this.isJumping) {
             this.isJumping = true;
             this.currentJumpSpeed = this.jumpHeight; // Initialise la vitesse de saut
         }
@@ -199,7 +194,7 @@ class Player {
 
         if (this.isJumping) {
             // Applique la vitesse de saut en Y
-            this.transform.position.y += this.currentJumpSpeed * GlobalManager.deltaTime;
+            this.transform.position.y += this.currentJumpSpeed * 20*GlobalManager.deltaTime;
             // Applique la gravité à la vitesse de saut
             this.currentJumpSpeed += this.gravity * GlobalManager.deltaTime;
 

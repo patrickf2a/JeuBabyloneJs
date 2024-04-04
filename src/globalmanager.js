@@ -25,6 +25,8 @@ class GlobalManager {
 
         this.canvas = canvas;
         this.engine = engine;
+        this.scene.gravity = new Vector3(0, 0, -9.81);
+
     }
 
     update() {
