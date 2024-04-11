@@ -1,6 +1,7 @@
-import { MeshBuilder, SceneLoader, Vector3, StandardMaterial, Texture,Color3,Color4 } from '@babylonjs/core';
+import { MeshBuilder, SceneLoader, Vector3, StandardMaterial, Texture,Color3, Color4, PhysicsImpostor } from '@babylonjs/core';
 import { GridMaterial } from '@babylonjs/materials';
 import { GlobalManager } from './globalmanager';
+
 
 class Arena {
 
@@ -86,6 +87,9 @@ class Arena {
                         let platformMaterial = new StandardMaterial('platformMaterial', GlobalManager.scene);
                         platformMaterial.diffuseColor = new Color3(0.76, 0.6, 0.42); // Couleur boisée par exemple
                         platform.material = platformMaterial;
+
+                        platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, { mass: 1 }, GlobalManager.scene);
+
                         break;
 
                     case ' ':

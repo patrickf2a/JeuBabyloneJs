@@ -1,4 +1,4 @@
-import { AxesViewer, ActionManager, Color3, MeshBuilder, Quaternion, Scalar, Scene, SceneLoader, StandardMaterial, TransformNode, Vector3,PhysicsImpostor, ExecuteCodeAction } from '@babylonjs/core';
+import { AxesViewer, ActionManager, Color3, MeshBuilder, Quaternion, Scalar, Scene, SceneLoader, StandardMaterial, TransformNode, Vector3,PhysicsImpostor, ExecuteCodeAction, Animation} from '@babylonjs/core';
 import { GlobalManager } from './globalmanager';
 
 import playerMeshUrl from "../assets/models/knight1.glb";
@@ -23,8 +23,7 @@ class Player {
     //Vecteur de deplacement
     moveDirection = new Vector3(0, 0, 0);
 
-    frontVector = new Vector3(0, 0, 0);
-
+    frontVector = new Vector3(0, 0, 1);
 
     lookDirectionQuaternion = Quaternion.Identity();
 
@@ -37,10 +36,7 @@ class Player {
         this.gravity = -9.81;
         this.velocity = new Vector3(0,0,0);
         this.canFire = true; // Peut tirer
-        this.fireRate = 500;
-
-        this.canFireCannonBalls = true;
-        this.fireRateCannonBalls = 0.1;
+        this.fireAfter = 0.3;
 
 
 
@@ -89,6 +85,7 @@ class Player {
         this.applyCameraToInputs();
         this.move();
 
+
         if (this.isJumping) {
             // Applique la vitesse de saut en Y
             this.transform.position.y += this.currentJumpSpeed * GlobalManager.deltaTime;
@@ -102,10 +99,11 @@ class Player {
             }
         }
 
+        /*
         if (inputMap["Space"]) {
             this.fireProjectile();
         }
-
+*/
     }
 
     getInputs(inputMap, actions) {
@@ -124,6 +122,11 @@ class Player {
             this.isJumping = true;
             this.currentJumpSpeed = this.jumpHeight; // Initialise la vitesse de saut
         }
+        if (inputMap["KeyR"]) {
+            console.log("R key pressed");
+            this.fireProjectile();
+        }
+
 
 
     }
@@ -270,40 +273,60 @@ class Player {
     }
 
     fireProjectile() {
-        if (!this.canFireCannonBalls) return;
+        if (!this.canFire) return;
 
-        this.canFireCannonBalls = false;
+        this.canFire = false;
         setTimeout(() => {
-            this.canFireCannonBalls = true;
-        }, 1000 * this.fireRateCannonBalls);
+            this.canFire = true;
+        }, 1000 * this.fireAfter);
 
-        // Crée le projectile
+        // Création du projectile
         const projectile = MeshBuilder.CreateSphere('projectile', { diameter: 0.5 }, GlobalManager.scene);
         projectile.material = new StandardMaterial("projectileMat", GlobalManager.scene);
-        projectile.material.diffuseColor = new Color3(1, 0, 0); // Couleur du projectile
+        projectile.material.diffuseColor = new Color3(1, 0, 0);
 
-        let correctedFrontVector = this.frontVector.normalize().scale(-1);
+        // Positionne le projectile à la position initiale du joueur
+        projectile.position = this.transform.position.clone().add(new Vector3(0, 1, 0));
+
+        // Orientation selon le joueur
+        let aimDirection = this.frontVector.negate().normalize();
+
+        // Initialise l'animation de lancement
+        let start = projectile.position.clone();
+        let end = start.add(aimDirection.scale(3));
+
+        // Animation de déplacement initial
+        let anim = new Animation("launchAnim", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        let keys = [];
+        keys.push({ frame: 0, value: start });
+        keys.push({ frame: 10, value: end });
+        anim.setKeys(keys);
+
+        projectile.animations = [];
+        projectile.animations.push(anim);
+
+        GlobalManager.scene.beginAnimation(projectile, 0, 10, false, 1, () => {
+            // Calcul de la force de l'impulsion avec une composante verticale après l'animation initiale
+            const powerOfFire = 70; // Puissance du tir
+            let azimuth = 10; // Ajustement vertical
+            let aimForceVector = aimDirection.scale(powerOfFire).add(new Vector3(0, azimuth, 0));
+
+            // Création d'un imposteur de physique pour le projectile
+            projectile.physicsImpostor = new PhysicsImpostor(projectile, PhysicsImpostor.SphereImpostor, { mass: 1 }, GlobalManager.scene);
+
+            // Applique la force au projectile
+            projectile.physicsImpostor.applyImpulse(aimForceVector, projectile.getAbsolutePosition());
+        });
 
 
-        projectile.position = this.transform.position.add(correctedFrontVector.scale(2));
-        projectile.position.y += 1;
+        // Gestion de la collision du projectile
 
 
-        projectile.physicsImpostor = new PhysicsImpostor(projectile, PhysicsImpostor.SphereImpostor, { mass: 1 }, GlobalManager.scene);
-
-
-        let powerOfFire = 100; 
-        let azimuth = 0.1; 
-        let aimForceVector = new Vector3(this.frontVector.x*powerOfFire, (this.frontVector.y+azimuth)*powerOfFire,this.frontVector.z*powerOfFire);
-        // Applique l'impulsion pour propulser le projectile
-        projectile.physicsImpostor.applyImpulse(aimForceVector, projectile.getAbsolutePosition());
-
-        // Nettoie le projectile après 3 secondes pour ne pas encombrer la scène
+        // Nettoyage du projectile après quelques secondes
         setTimeout(() => {
             projectile.dispose();
         }, 3000);
     }
-
 
 }
 

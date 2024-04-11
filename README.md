@@ -12,13 +12,15 @@ Noud avons suivi la video de 1h30 sur youtube de Olivier Argimbau pour la creati
 - Le personnage peux sauter.
 - Le terrain a ete delimite le personnage ne peux pas sortir du terrain.
 - La gestion de projectile a ete ajouter mais ne focntionne pas tres bien encore 
-
+- Le personnage peux tirer des projectiles
+- Le personnage peux sauter par dessus le plateforme et les murs mais pas les traverser 
 - Pour le déplacement : 
 
 - touche Z pour monter
 - touche Q pour aller a gauche
 - touche S pour descendre
 - touche D pour aller a droite
-- touche Espace pour sauter ( et envoyer projectiles )
+- touche Espace pour sauter
+- touche R pour tirer
 
 
