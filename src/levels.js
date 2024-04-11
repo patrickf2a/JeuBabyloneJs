@@ -26,7 +26,7 @@ const level1 = {
         "W    WWWWWWWWW   WWWWWWWWWWW   WWWWWWWWWWW   W",
         "W             W               W              W",
         "W             W               W              W",
-        "W    WWWWWWWWWWW   WWWWWWWWWWWWWWWWWWWWWWW   W",
+        "W       WWWWWWWWWWWWWWWWWWWWWWW   W",
         "W                                            W",
         "W                                            W",
         "W                                            W",
@@ -52,17 +52,16 @@ const level1 = {
         "W                                            W",
         "W         PPPP                               W",
         "W                                            W",
-        "W                                            W",
-        "W                                            W",
-        "W                      PPPP                  W",
-        "W                                            W",
+        "W                    PPPPPWW   WWWWWW        W",
+        "W                  P                         W",
+        "W     PP           PPPPP   PPPP   PPPP       W",
+        "W    P       WWWWWW                          W",
         "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
     ],
     spawnPlayerX: 1,
     spawnPlayerY: 1,
     bonus: 1,
 };
-
 
 
 

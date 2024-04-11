@@ -73,8 +73,8 @@ class Player {
     this.mesh = result.meshes[0];
     this.mesh.name = "knight";
     this.mesh.rotationQuaternion = Quaternion.FromEulerAngles(
-      Math.PI / 2,
       0,
+      Math.PI / 2,
       0
     );
     this.mesh.scaling.set(0.1, 0.1, 0.1);
