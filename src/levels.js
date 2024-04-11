@@ -65,7 +65,6 @@ const level1 = {
 
 
 
-
 const level2 = {
 
     name : "Niveau 2",

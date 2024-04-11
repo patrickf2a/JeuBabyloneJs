@@ -96,8 +96,6 @@ class Arena {
         }
     }
 
-
-
     disposeLevel() {
         //CLEAN
         this.width = 0;
