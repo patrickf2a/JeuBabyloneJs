@@ -1,293 +1,342 @@
-import { AxesViewer, ActionManager, Color3, MeshBuilder, Quaternion, Scalar, Scene, SceneLoader, StandardMaterial, TransformNode, Vector3,PhysicsImpostor, ExecuteCodeAction } from '@babylonjs/core';
-import { GlobalManager } from './globalmanager';
+import {
+  AxesViewer,
+  ActionManager,
+  Color3,
+  MeshBuilder,
+  Quaternion,
+  Scalar,
+  Scene,
+  SceneLoader,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+  PhysicsImpostor,
+  ExecuteCodeAction,
+} from "@babylonjs/core";
+import { GlobalManager } from "./globalmanager";
 
 import playerMeshUrl from "../assets/models/knight1.glb";
 
 const SPEED = 7.0;
-const TURN_SPEED = 4*Math.PI;
+const TURN_SPEED = 4 * Math.PI;
 const OBSTACLE_HEIGHT = 2.0;
 
 class Player {
+  transform;
+  mesh;
 
-    transform;
-    mesh;
+  axes;
 
-    axes;
+  spawnPoint;
+  arena;
 
-    spawnPoint;
-    arena;
+  //Vecteur d'input
+  moveInput = new Vector3(0, 0, 0);
 
-    //Vecteur d'input
-    moveInput = new Vector3(0, 0, 0);
+  //Vecteur de deplacement
+  moveDirection = new Vector3(0, 0, 0);
 
-    //Vecteur de deplacement
-    moveDirection = new Vector3(0, 0, 0);
+  frontVector = new Vector3(0, 0, 0);
 
-    frontVector = new Vector3(0, 0, 0);
+  lookDirectionQuaternion = Quaternion.Identity();
 
+  constructor(spawnPoint, arena) {
+    this.spawnPoint = spawnPoint;
+    this.arena = arena;
+    this.isJumping = false;
+    this.jumpHeight = 5.0;
+    this.currentJumpSpeed = 0;
+    this.gravity = -9.81;
 
-    lookDirectionQuaternion = Quaternion.Identity();
+    this.canFire = true; // Peut tirer
+    this.fireRate = 500;
 
-    constructor(spawnPoint,arena) {
-        this.spawnPoint = spawnPoint;
-        this.arena = arena;
-        this.isJumping = false;
-        this.jumpHeight = 5.0;
-        this.currentJumpSpeed = 0;
-        this.gravity = -9.81;
+    this.canFireCannonBalls = true;
+    this.fireRateCannonBalls = 0.1;
+  }
 
-        this.canFire = true; // Peut tirer
-        this.fireRate = 500;
-
-        this.canFireCannonBalls = true;
-        this.fireRateCannonBalls = 0.1;
-
-
-
-    }
-
-    async init() {
-        /*this.mesh = MeshBuilder.CreateBox('playerMesh', {size: 2});
+  async init() {
+    /*this.mesh = MeshBuilder.CreateBox('playerMesh', {size: 2});
         this.mesh.material = new StandardMaterial("playerMat", GlobalManager.scene);
         this.mesh.material.diffuseColor = new Color3(1, 0, 0);
         this.mesh.visibility = 0.6;*/
 
-        this.transform = new TransformNode("player", GlobalManager.scene);
-        this.transform.position = this.spawnPoint.clone();
+    this.transform = new TransformNode("player", GlobalManager.scene);
+    this.transform.position = this.spawnPoint.clone();
 
-        const result = await SceneLoader.ImportMeshAsync("", "", playerMeshUrl, GlobalManager.scene);
-        this.mesh = result.meshes[0];
-        this.mesh.name = "knight";
-        this.mesh.rotationQuaternion = Quaternion.FromEulerAngles(0, Math.PI / 2, 0);
-        this.mesh.scaling.set(0.1, 0.1, 0.1);
-        this.mesh.parent = this.transform;
+    const result = await SceneLoader.ImportMeshAsync(
+      "",
+      "",
+      playerMeshUrl,
+      GlobalManager.scene
+    );
+    this.mesh = result.meshes[0];
+    this.mesh.name = "knight";
+    this.mesh.rotationQuaternion = Quaternion.FromEulerAngles(
+      Math.PI / 2,
+      0,
+      0
+    );
+    this.mesh.scaling.set(0.1, 0.1, 0.1);
+    this.mesh.parent = this.transform;
 
-        for (let childMesh of result.meshes) {
-            if ((childMesh.name === "Object_3") ||
-            (childMesh.name === "Object_5") ||
-            (childMesh.name === "Object_4") ||
-            (childMesh.name === "Object_11")) {
-
-                childMesh.receiveShadows = true;
-                GlobalManager.addShadowCaster(childMesh);
-            }
-        }
-/*
+    for (let childMesh of result.meshes) {
+      if (
+        childMesh.name === "Object_3" ||
+        childMesh.name === "Object_5" ||
+        childMesh.name === "Object_4" ||
+        childMesh.name === "Object_11"
+      ) {
+        childMesh.receiveShadows = true;
+        GlobalManager.addShadowCaster(childMesh);
+      }
+    }
+    /*
         const poignee = this.mesh.getChildTransformNodes().find( (node) => node.name === 'Object_2');
         let childObj = MeshBuilder.CreateBox("childObj", GlobalManager.scene);
         childObj.setParent(poignee);
         childObj.position.set(0, 0, 0);
         childObj.scaling.set(1, 1, 1)
 */
-        //Mesh "Object_11" => Roues
+    //Mesh "Object_11" => Roues
+  }
+
+  update(inputMap, actions, delta) {
+    this.getInputs(inputMap, actions);
+
+    this.applyCameraToInputs();
+    this.move();
+
+    if (this.isJumping) {
+      // Applique la vitesse de saut en Y
+      this.transform.position.y +=
+        this.currentJumpSpeed * GlobalManager.deltaTime;
+      // Applique la gravité à la vitesse de saut
+      this.currentJumpSpeed += this.gravity * GlobalManager.deltaTime;
+
+      if (this.transform.position.y <= 0) {
+        this.transform.position.y = 0;
+        this.isJumping = false; // Arrête le saut
+        this.currentJumpSpeed = 0; // Réinitialise la vitesse de saut
+      }
     }
 
-    update(inputMap, actions , delta) {
+    if (inputMap["Space"]) {
+      this.fireProjectile();
+    }
+  }
 
-        this.getInputs(inputMap, actions);
+  getInputs(inputMap, actions) {
+    this.moveInput.set(0, 0, 0);
 
-        this.applyCameraToInputs();
-        this.move();
+    if (inputMap["KeyA"]) {
+      this.moveInput.x = -1;
+    } else if (inputMap["KeyD"]) {
+      this.moveInput.x = 1;
+    }
 
-        if (this.isJumping) {
-            // Applique la vitesse de saut en Y
-            this.transform.position.y += this.currentJumpSpeed * GlobalManager.deltaTime;
-            // Applique la gravité à la vitesse de saut
-            this.currentJumpSpeed += this.gravity * GlobalManager.deltaTime;
+    if (inputMap["KeyW"]) {
+      this.moveInput.z = 1;
+    } else if (inputMap["KeyS"]) {
+      this.moveInput.z = -1;
+    }
 
-            if (this.transform.position.y <= 0) {
-                this.transform.position.y = 0;
-                this.isJumping = false; // Arrête le saut
-                this.currentJumpSpeed = 0; // Réinitialise la vitesse de saut
-            }
+    if (inputMap["Space"] && !this.isJumping) {
+      this.isJumping = true;
+      this.currentJumpSpeed = this.jumpHeight; // Initialise la vitesse de saut
+    }
+  }
+
+  applyCameraToInputs() {
+    if (this.moveInput.length() != 0) {
+      // Get the forward direction of the camera
+      let forward = this.getForwardVector(GlobalManager.camera);
+      forward.y = 0; // Remove Y-axis component
+      forward.normalize();
+      forward.scaleInPlace(this.moveInput.z);
+
+      // Get the right direction of the camera
+      let right = this.getRightVector(GlobalManager.camera);
+      right.y = 0; // Remove Y-axis component
+      right.normalize();
+      right.scaleInPlace(this.moveInput.x);
+
+      // Add the two vectors
+      this.moveDirection = right.add(forward);
+
+      // Normalize
+      this.moveDirection.normalize();
+
+      // Update the look direction quaternion
+      let adjustedDirection = this.moveDirection.negate(); // Inverse the direction vector
+      Quaternion.FromEulerAnglesToRef(
+        0,
+        Math.atan2(adjustedDirection.x, adjustedDirection.z),
+        0,
+        this.lookDirectionQuaternion
+      );
+
+      // Update the front vector
+      this.frontVector = adjustedDirection;
+    }
+  }
+
+  move() {
+    if (this.moveDirection.length() != 0) {
+      let deltaPosition = this.moveDirection.scale(
+        SPEED * GlobalManager.deltaTime
+      );
+      let newPosition = this.transform.position.add(deltaPosition);
+
+      // Limite les déplacements aux bords du terrain
+      newPosition.x = Math.max(
+        0.5,
+        Math.min(this.arena.width - 0.5, newPosition.x)
+      );
+      newPosition.z = Math.max(
+        0.5,
+        Math.min(this.arena.height - 0.5, newPosition.z)
+      );
+
+      // Vérifie si la nouvelle position est bloquée par un 'W' ou un 'P'
+      if (!this.isPositionBlocked(newPosition)) {
+        // Si non bloquée, met à jour la position du joueur
+        this.transform.position = newPosition;
+      } else {
+        // Tente de permettre un mouvement partiel si possible
+        let alternativeX = this.transform.position.add(
+          new Vector3(deltaPosition.x, 0, 0)
+        );
+        let alternativeZ = this.transform.position.add(
+          new Vector3(0, 0, deltaPosition.z)
+        );
+
+        if (!this.isPositionBlocked(alternativeX)) {
+          this.transform.position.x += deltaPosition.x;
         }
-
-        if (inputMap["Space"]) {
-            this.fireProjectile();
+        if (!this.isPositionBlocked(alternativeZ)) {
+          this.transform.position.z += deltaPosition.z;
         }
+      }
 
+      // Rotation du joueur vers la direction du mouvement
+      let adjustedDirection = this.moveDirection.negate(); // Ceci inverse le vecteur de direction
+      Quaternion.FromLookDirectionLHToRef(
+        adjustedDirection,
+        Vector3.UpReadOnly,
+        this.lookDirectionQuaternion
+      );
+      Quaternion.SlerpToRef(
+        this.mesh.rotationQuaternion,
+        this.lookDirectionQuaternion,
+        TURN_SPEED * GlobalManager.deltaTime,
+        this.mesh.rotationQuaternion
+      );
     }
 
-    getInputs(inputMap, actions) {
-        this.moveInput.set(0, 0, 0);
+    if (this.isJumping) {
+      // Applique la vitesse de saut en Y
+      this.transform.position.y +=
+        this.currentJumpSpeed * GlobalManager.deltaTime;
+      // Applique la gravité à la vitesse de saut
+      this.currentJumpSpeed += this.gravity * GlobalManager.deltaTime;
 
-        if (inputMap["KeyA"]) {
-            this.moveInput.x = -1;
-        } else if (inputMap["KeyD"]) {
-            this.moveInput.x = 1;
-        }
+      if (this.transform.position.y <= 0) {
+        this.transform.position.y = 0;
+        this.isJumping = false; // Arrête le saut
+        this.currentJumpSpeed = 0; // Réinitialise la vitesse de saut
+      }
+    }
+  }
 
-        if (inputMap["KeyW"]) {
-            this.moveInput.z = 1;
-        } else if (inputMap["KeyS"]) {
-            this.moveInput.z = -1;
-        }
+  getUpVector(_mesh) {
+    let up_local = _mesh.getDirection(Vector3.UpReadOnly);
+    return up_local.normalize();
+  }
 
-        if (inputMap["Space"] && !this.isJumping) {
-            this.isJumping = true;
-            this.currentJumpSpeed = this.jumpHeight; // Initialise la vitesse de saut
-        }
+  getForwardVector(_mesh) {
+    let forward_local = _mesh.getDirection(Vector3.LeftHandedForwardReadOnly);
+    return forward_local.normalize();
+  }
 
+  getRightVector(_mesh) {
+    let right_local = _mesh.getDirection(Vector3.RightReadOnly);
+    return right_local.normalize();
+  }
 
+  isPositionBlocked(newPosition) {
+    // Convertir la position en coordonnées de grille
+    let gridX = Math.round(newPosition.x);
+    let gridZ = Math.round(newPosition.z);
+
+    // Obtenir le caractère à la position cible
+    let targetCell =
+      this.arena.levelRows[gridZ] && this.arena.levelRows[gridZ][gridX];
+
+    // Vérifie si la cible est un mur ('W') ou une plate-forme ('P')
+    if (targetCell === "W" || targetCell === "P") {
+      // Si le joueur est au-dessus de la hauteur de l'obstacle, il peut passer
+      if (this.transform.position.y > OBSTACLE_HEIGHT) {
+        return false; // Pas bloqué
+      }
+      return true; // Bloqué
     }
 
+    return false; // Pas bloqué si l'espace est vide
+  }
 
-    applyCameraToInputs() {
-        this.moveDirection.set(0, 0, 0);
+  fireProjectile() {
+    if (!this.canFireCannonBalls) return;
 
-        if (this.moveInput.length() != 0) {
-            // Get the forward direction of the camera
-            let forward = this.getForwardVector(GlobalManager.camera);
-            forward.y = 0;
-            forward.normalize();
-            forward.scaleInPlace(this.moveInput.z);
+    this.canFireCannonBalls = false;
+    setTimeout(() => {
+      this.canFireCannonBalls = true;
+    }, 1000 * this.fireRateCannonBalls);
 
-            // Get the right direction of the camera
-            let right = this.getRightVector(GlobalManager.camera);
-            right.y = 0;
-            right.normalize();
-            right.scaleInPlace(this.moveInput.x);
+    // Crée le projectile
+    const projectile = MeshBuilder.CreateSphere(
+      "projectile",
+      { diameter: 0.5 },
+      GlobalManager.scene
+    );
+    projectile.material = new StandardMaterial(
+      "projectileMat",
+      GlobalManager.scene
+    );
+    projectile.material.diffuseColor = new Color3(1, 0, 0); // Couleur du projectile
 
-            // Add the two vectors
-            this.moveDirection = right.add(forward);
+    let correctedFrontVector = this.frontVector.normalize().scale(-1);
 
-            // Normalize
-            this.moveDirection.normalize();
+    projectile.position = this.transform.position.add(
+      correctedFrontVector.scale(2)
+    );
+    projectile.position.y += 1;
 
-            // Get the adjusted direction
-            let adjustedDirection = this.moveDirection.negate();
+    projectile.physicsImpostor = new PhysicsImpostor(
+      projectile,
+      PhysicsImpostor.SphereImpostor,
+      { mass: 1 },
+      GlobalManager.scene
+    );
 
-            // Update the look direction quaternion
-            Quaternion.FromLookDirectionLHToRef(adjustedDirection, Vector3.UpReadOnly, this.lookDirectionQuaternion);
+    let powerOfFire = 100;
+    let azimuth = 0.1;
+    let aimForceVector = new Vector3(
+      this.frontVector.x * powerOfFire,
+      (this.frontVector.y + azimuth) * powerOfFire,
+      this.frontVector.z * powerOfFire
+    );
+    // Applique l'impulsion pour propulser le projectile
+    projectile.physicsImpostor.applyImpulse(
+      aimForceVector,
+      projectile.getAbsolutePosition()
+    );
 
-            // Update the front vector
-            this.frontVector = adjustedDirection;
-        }
-    }
-
-    move() {
-        if (this.moveDirection.length() != 0) {
-            let deltaPosition = this.moveDirection.scale(SPEED * GlobalManager.deltaTime);
-            let newPosition = this.transform.position.add(deltaPosition);
-
-            // Limite les déplacements aux bords du terrain
-            newPosition.x = Math.max(0.5, Math.min(this.arena.width - 0.5, newPosition.x));
-            newPosition.z = Math.max(0.5, Math.min(this.arena.height - 0.5, newPosition.z));
-
-            // Vérifie si la nouvelle position est bloquée par un 'W' ou un 'P'
-            if (!this.isPositionBlocked(newPosition)) {
-                // Si non bloquée, met à jour la position du joueur
-                this.transform.position = newPosition;
-            } else {
-                // Tente de permettre un mouvement partiel si possible
-                let alternativeX = this.transform.position.add(new Vector3(deltaPosition.x, 0, 0));
-                let alternativeZ = this.transform.position.add(new Vector3(0, 0, deltaPosition.z));
-
-                if (!this.isPositionBlocked(alternativeX)) {
-                    this.transform.position.x += deltaPosition.x;
-                }
-                if (!this.isPositionBlocked(alternativeZ)) {
-                    this.transform.position.z += deltaPosition.z;
-                }
-            }
-
-            // Rotation du joueur vers la direction du mouvement
-            let adjustedDirection = this.moveDirection.negate(); // Ceci inverse le vecteur de direction
-            Quaternion.FromLookDirectionLHToRef(adjustedDirection, Vector3.UpReadOnly, this.lookDirectionQuaternion);
-            Quaternion.SlerpToRef(this.mesh.rotationQuaternion, this.lookDirectionQuaternion, TURN_SPEED * GlobalManager.deltaTime, this.mesh.rotationQuaternion);
-        }
-
-        if (this.isJumping) {
-            // Applique la vitesse de saut en Y
-            this.transform.position.y += this.currentJumpSpeed * GlobalManager.deltaTime;
-            // Applique la gravité à la vitesse de saut
-            this.currentJumpSpeed += this.gravity * GlobalManager.deltaTime;
-
-            if (this.transform.position.y <= 0) {
-                this.transform.position.y = 0;
-                this.isJumping = false; // Arrête le saut
-                this.currentJumpSpeed = 0; // Réinitialise la vitesse de saut
-            }
-        }
-
-
-
-    }
-
-
-    getUpVector(_mesh) {
-        let up_local = _mesh.getDirection(Vector3.UpReadOnly);
-        return up_local.normalize();
-    }
-
-    getForwardVector(_mesh) {
-        
-        let forward_local = _mesh.getDirection(Vector3.LeftHandedForwardReadOnly);
-        return forward_local.normalize();
-    }
-
-    getRightVector(_mesh) {
-       
-        let right_local = _mesh.getDirection(Vector3.RightReadOnly);
-        return right_local.normalize();
-    }
-
-    isPositionBlocked(newPosition) {
-        // Convertir la position en coordonnées de grille
-        let gridX = Math.round(newPosition.x);
-        let gridZ = Math.round(newPosition.z);
-
-        // Obtenir le caractère à la position cible
-        let targetCell = this.arena.levelRows[gridZ] && this.arena.levelRows[gridZ][gridX];
-
-        // Vérifie si la cible est un mur ('W') ou une plate-forme ('P')
-        if (targetCell === 'W' || targetCell === 'P') {
-            // Si le joueur est au-dessus de la hauteur de l'obstacle, il peut passer
-            if (this.transform.position.y > OBSTACLE_HEIGHT) {
-                return false; // Pas bloqué
-            }
-            return true; // Bloqué
-        }
-
-        return false; // Pas bloqué si l'espace est vide
-    }
-
-    fireProjectile() {
-        if (!this.canFireCannonBalls) return;
-
-        this.canFireCannonBalls = false;
-        setTimeout(() => {
-            this.canFireCannonBalls = true;
-        }, 1000 * this.fireRateCannonBalls);
-
-        // Crée le projectile
-        const projectile = MeshBuilder.CreateSphere('projectile', { diameter: 0.5 }, GlobalManager.scene);
-        projectile.material = new StandardMaterial("projectileMat", GlobalManager.scene);
-        projectile.material.diffuseColor = new Color3(1, 0, 0); // Couleur du projectile
-
-        let correctedFrontVector = this.frontVector.normalize().scale(-1);
-
-
-        projectile.position = this.transform.position.add(correctedFrontVector.scale(2));
-        projectile.position.y += 1;
-
-
-        projectile.physicsImpostor = new PhysicsImpostor(projectile, PhysicsImpostor.SphereImpostor, { mass: 1 }, GlobalManager.scene);
-
-
-        let powerOfFire = 100; 
-        let azimuth = 0.1; 
-        let aimForceVector = new Vector3(this.frontVector.x*powerOfFire, (this.frontVector.y+azimuth)*powerOfFire,this.frontVector.z*powerOfFire);
-        // Applique l'impulsion pour propulser le projectile
-        projectile.physicsImpostor.applyImpulse(aimForceVector, projectile.getAbsolutePosition());
-
-        // Nettoie le projectile après 3 secondes pour ne pas encombrer la scène
-        setTimeout(() => {
-            projectile.dispose();
-        }, 3000);
-    }
-
-
+    // Nettoie le projectile après 3 secondes pour ne pas encombrer la scène
+    setTimeout(() => {
+      projectile.dispose();
+    }, 3000);
+  }
 }
 
 export default Player;
