@@ -25,12 +25,7 @@ class GlobalManager {
 
         this.canvas = canvas;
         this.engine = engine;
-
-        // Create the scene
-        this.scene = new Scene(this.engine);
-
-        // Enable physics in the scene
-        this.scene.enablePhysics();
+        this.scene.gravity = new Vector3(0, 0, -9.81);
     }
 
     update() {
