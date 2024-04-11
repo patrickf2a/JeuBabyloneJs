@@ -111,25 +111,36 @@ class Player {
 
         this.moveInput.set(0, 0, 0);
 
-        if (inputMap["KeyA"]) {
+        // Déplacement horizontal avec A, D, et les flèches gauche et droite
+        if (inputMap["KeyA"] || inputMap["ArrowLeft"]) {
             this.moveInput.x = -1;
-        } else if (inputMap["KeyD"]) {
+        } else if (inputMap["KeyD"] || inputMap["ArrowRight"]) {
             this.moveInput.x = 1;
         }
 
 
+        // Déplacement vertical avec W, S, et les flèches haut et bas
+        if (inputMap["KeyW"] || inputMap["ArrowUp"]) {
+            this.moveInput.z = 1;
+        } else if (inputMap["KeyS"] || inputMap["ArrowDown"]) {
+            this.moveInput.z = -1;
+        }
+
+        // Saut avec la touche Espace
+        if (inputMap["Space"] && !this.isJumping) {
         if (inputMap["KeyW"] && !this.isJumping) {
+
             this.isJumping = true;
             this.currentJumpSpeed = this.jumpHeight; // Initialise la vitesse de saut
         }
+
+        // Action spécifique avec la touche R
         if (inputMap["KeyR"]) {
             console.log("R key pressed");
             this.fireProjectile();
         }
-
-
-
     }
+
 
 
     applyCameraToInputs() {
@@ -293,7 +304,7 @@ class Player {
 
         // Initialise l'animation de lancement
         let start = projectile.position.clone();
-        let end = start.add(aimDirection.scale(3));
+        let end = start.add(aimDirection.scale(10));
 
         // Animation de déplacement initial
         let anim = new Animation("launchAnim", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -305,11 +316,12 @@ class Player {
         projectile.animations = [];
         projectile.animations.push(anim);
 
+
         GlobalManager.scene.beginAnimation(projectile, 0, 10, false, 1, () => {
             // Calcul de la force de l'impulsion avec une composante verticale après l'animation initiale
-            const powerOfFire = 70; // Puissance du tir
-            let azimuth = 10; // Ajustement vertical
-            let aimForceVector = aimDirection.scale(powerOfFire).add(new Vector3(0, azimuth, 0));
+            const powerOfFire = 100; // Puissance du tir
+            let azimuth = 0.01; // Ajustement vertical
+            let aimForceVector = new Vector3(this.frontVector.x*powerOfFire, (this.frontVector.y+azimuth)*powerOfFire,this.frontVector.z*powerOfFire);
 
             // Création d'un imposteur de physique pour le projectile
             projectile.physicsImpostor = new PhysicsImpostor(projectile, PhysicsImpostor.SphereImpostor, { mass: 1 }, GlobalManager.scene);
