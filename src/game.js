@@ -136,10 +136,10 @@ class Game {
 
         // Crée et positionne une caméra libre
         // Positionne la caméra à une hauteur suffisante pour avoir une vue du dessus
-        GlobalManager.camera = new FreeCamera("camera1", new Vector3(1,1, -100), GlobalManager.scene); // Ajustez la hauteur au besoin
-
+        GlobalManager.camera = new FreeCamera("camera1", new Vector3(20,20, 50), GlobalManager.scene); // Ajustez la hauteur au besoin
+        GlobalManager.camera.attachControl(GlobalManager.canvas, true);
         // Oriente la caméra pour regarder directement vers le bas
-        GlobalManager.camera.rotation.x = 0;
+        GlobalManager.camera.rotation.x = Math.PI;
 
         // Attache la caméra au canvas pour permettre le contrôle par l'utilisateur
 

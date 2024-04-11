@@ -5,7 +5,7 @@ import playerMeshUrl from "../assets/models/knight1.glb";
 
 const SPEED = 7.0;
 const TURN_SPEED = 4*Math.PI;
-const OBSTACLE_HEIGHT = 2.0;
+const OBSTACLE_HEIGHT = 2;
 
 class Player {
 
@@ -35,7 +35,7 @@ class Player {
         this.jumpHeight = 5.0;
         this.currentJumpSpeed = 0;
         this.gravity = -9.81;
-
+        this.velocity = new Vector3(0,0,0);
         this.canFire = true; // Peut tirer
         this.fireRate = 500;
 
@@ -59,7 +59,7 @@ class Player {
         this.mesh = result.meshes[0];
         this.mesh.name = "knight";
         this.mesh.rotationQuaternion = Quaternion.FromEulerAngles(0, Math.PI / 2, 0);
-        this.mesh.scaling.set(0.1, 0.1, 0.1);
+        this.mesh.scaling.set(.2, .2, .2);
         this.mesh.parent = this.transform;
 
         for (let childMesh of result.meshes) {
@@ -109,6 +109,8 @@ class Player {
     }
 
     getInputs(inputMap, actions) {
+
+
         this.moveInput.set(0, 0, 0);
 
         if (inputMap["KeyA"]) {
@@ -164,10 +166,25 @@ class Player {
         if (this.moveDirection.length() != 0) {
             let deltaPosition = this.moveDirection.scale(SPEED * GlobalManager.deltaTime);
             let newPosition = this.transform.position.add(deltaPosition);
-
+            let gridX = Math.round(newPosition.x);
+            let gridY = Math.round(newPosition.y);
+            let targetCell = this.arena.levelRows[gridY] && this.arena.levelRows[gridY][gridX];
+            if (targetCell=='W'||targetCell=='P') {
+                if (this.transform.position.y > OBSTACLE_HEIGHT) {
+                    this.velocity.y = 0;}
+                    else{
+                        this.velocity.y -= this.gravity * GlobalManager.deltaTime;
+                    }
+                    
+                }
+                else {
+                    // Appliquer la gravité
+                    this.velocity.y -= this.gravity * GlobalManager.deltaTime;
+                }
+                
             // Limite les déplacements aux bords du terrain
             newPosition.x = Math.max(0.5, Math.min(this.arena.width - 0.5, newPosition.x));
-            newPosition.z = Math.max(0.5, Math.min(this.arena.height - 0.5, newPosition.z));
+            newPosition.y = Math.max(0.5, Math.min(this.arena.height - 0.5, newPosition.y));
 
             // Vérifie si la nouvelle position est bloquée par un 'W' ou un 'P'
             if (!this.isPositionBlocked(newPosition)) {
@@ -176,13 +193,13 @@ class Player {
             } else {
                 // Tente de permettre un mouvement partiel si possible
                 let alternativeX = this.transform.position.add(new Vector3(deltaPosition.x, 0, 0));
-                let alternativeZ = this.transform.position.add(new Vector3(0, 0, deltaPosition.z));
+                let alternativeY = this.transform.position.add(new Vector3(0, deltaPosition.y,0));
 
                 if (!this.isPositionBlocked(alternativeX)) {
                     this.transform.position.x += deltaPosition.x;
                 }
-                if (!this.isPositionBlocked(alternativeZ)) {
-                    this.transform.position.z += deltaPosition.z;
+                if (!this.isPositionBlocked(alternativeY)) {
+                    this.transform.position.y += deltaPosition.y;
                 }
             }
 
@@ -230,16 +247,21 @@ class Player {
     isPositionBlocked(newPosition) {
         // Convertir la position en coordonnées de grille
         let gridX = Math.round(newPosition.x);
-        let gridZ = Math.round(newPosition.z);
+        let gridY = Math.round(newPosition.y);
 
+        console.log("grid" + gridX, gridY);
+        console.log(newPosition.x, newPosition.y)
         // Obtenir le caractère à la position cible
-        let targetCell = this.arena.levelRows[gridZ] && this.arena.levelRows[gridZ][gridX];
-
+        let targetCell = this.arena.levelRows[gridY] && this.arena.levelRows[gridY][gridX];
+        console.log("targetCell" + targetCell)
         // Vérifie si la cible est un mur ('W') ou une plate-forme ('P')
         if (targetCell === 'W' || targetCell === 'P') {
+            console.log("blocked")
+            console.log("binbinks"+this.transform.position.y+" "+OBSTACLE_HEIGHT)
             // Si le joueur est au-dessus de la hauteur de l'obstacle, il peut passer
             if (this.transform.position.y > OBSTACLE_HEIGHT) {
                 return false; // Pas bloqué
+
             }
             return true; // Bloqué
         }

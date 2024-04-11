@@ -1,4 +1,4 @@
-import { MeshBuilder, SceneLoader, Vector3, StandardMaterial, Texture,Color3 } from '@babylonjs/core';
+import { MeshBuilder, SceneLoader, Vector3, StandardMaterial, Texture,Color3,Color4 } from '@babylonjs/core';
 import { GridMaterial } from '@babylonjs/materials';
 import { GlobalManager } from './globalmanager';
 
@@ -20,6 +20,8 @@ class Arena {
 
     async init() {
         this.playerSpawnPoint = new Vector3(0, 0, 0);
+        GlobalManager.scene.clearColor = new Color4(1, 1, 1, 1);
+
     }
 
     async loadLevel(level){
@@ -43,16 +45,18 @@ class Arena {
         this.SpawnX = level.spawnPlayerX;
         this.SpawnY = level.spawnPlayerY;
         this.playerSpawnPoint = new Vector3(this.SpawnX, 0, this.SpawnY);
+        GlobalManager.scene.clearColor = new Color4(1, 1, 1, 1);
+
     }
 
     drawlevel() {
         // Création du sol
         this.ground = MeshBuilder.CreateGround('ground', {width: this.width, height: this.height});
-        this.ground.position.set(this.width / 2 - 0.5, 0, this.height / 2 - 0.5);
-        //this.ground.position.set(0, 0, 0); // Centre le terrain à l'origine
-
+        this.ground.position.set(1  , 1, this.height );
+        // this.ground.position.set(1, 0, 10); // Centre le terrain à l'origine
+        this.ground.rotation.x = -Math.PI / 2; // Tourne le terrain pour qu'il soit horizontal
         let groundMat = new StandardMaterial('groundMaterial', GlobalManager.scene);
-        groundMat.specularColor = new Color3(0.1, 0.1, 0.1);
+        groundMat.specularColor = new Color3(1, 1, 1);
         groundMat.diffuseTexture = new Texture(this.groundTexture, GlobalManager.scene);
         groundMat.diffuseTexture.uScale = this.width;
         groundMat.diffuseTexture.vScale = this.height;
@@ -77,7 +81,7 @@ class Arena {
                         brick.material = wallMaterial;
                         break;
                     case 'P': // Nouveau cas pour les plates-formes
-                        let platform = MeshBuilder.CreateBox('platform', {height: 0.1, width: 1, depth: 1}, GlobalManager.scene);
+                        let platform = MeshBuilder.CreateBox('platform', {height: 1, width: 1, depth: 1}, GlobalManager.scene);
                         platform.position.set(x, y,0.25)// Ajustez la position verticale selon vos besoins
                         let platformMaterial = new StandardMaterial('platformMaterial', GlobalManager.scene);
                         platformMaterial.diffuseColor = new Color3(0.76, 0.6, 0.42); // Couleur boisée par exemple
